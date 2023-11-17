@@ -16,23 +16,42 @@ public class CarPositionList
     public CarPosition[] positions;
 }
 
+
 [System.Serializable]
-public class StaticAgentPosition
+public class TrafficLightPosition
 {
     public string id;
-    public float[] position;
+    public float[] position; 
 }
 
 [System.Serializable]
-public class StaticAgentPositionList
+public class TrafficLightList
 {
-    public StaticAgentPosition[] positions;
+    public TrafficLightPosition[] trafficLights;
+}
+
+[System.Serializable]
+public class TrafficLightState
+{
+    public string id;
+    public string state; // "red" o "green"
+}
+
+[System.Serializable]
+public class TrafficLightStateList
+{
+    public TrafficLightState[] trafficLights;
 }
 
 public class AgentPositionUpdater : MonoBehaviour
 {
     // Creamos un diccionario para almacenar los GameObjects de los agentes Car
     private Dictionary<string, GameObject> carObjects = new Dictionary<string, GameObject>();
+    private Dictionary<string, GameObject> trafficLightObjects = new Dictionary<string, GameObject>();
+
+    public Material redMaterial; 
+    public Material greenMaterial;
+
     void Start()
     {
         DontDestroyOnLoad(gameObject); // Asegúrate de que este GameObject persista entre escenas
@@ -47,7 +66,19 @@ public class AgentPositionUpdater : MonoBehaviour
                 carObjects[carId] = carObject;
             }
         }
+        
+        for (int i = 1; i <= 25; i++)
+        {
+            string trafficLightId = "traffic_light_" + i;
+            GameObject trafficLightObject = GameObject.Find(trafficLightId);
+            if (trafficLightObject != null)
+            {
+                trafficLightObjects[trafficLightId] = trafficLightObject;
+            }
+        }
         StartCoroutine(GetAgentPositions());
+        StartCoroutine(SetInitialTrafficLightPositions());
+        StartCoroutine(UpdateTrafficLightStates());
     }
 
     IEnumerator GetAgentPositions()
@@ -71,12 +102,68 @@ public class AgentPositionUpdater : MonoBehaviour
                     if (carObjects.TryGetValue(carPos.id, out GameObject carObject) && carObject != null && carPos.position != null && carPos.position.Length == 2)
                     {
                         carObject.transform.position = new Vector3(carPos.position[0], 0, carPos.position[1]);
-                        print("Car ID: " + carPos.id + " Position: " + carObject.transform.position);
-
+                        //print("Car ID: " + carPos.id + " Position: " + carObject.transform.position);
                     }
                 }
             }
-            yield return new WaitForSeconds(0.001f); // Tiempo de delay
+            yield return new WaitForSeconds(1); // Tiempo de delay
+        }
+    }
+    IEnumerator SetInitialTrafficLightPositions()
+    {
+        UnityWebRequest www = UnityWebRequest.Get("http://127.0.0.1:5000/get_traffic_light_positions");
+        yield return www.SendWebRequest();
+
+        if (www.result != UnityWebRequest.Result.Success)
+        {
+            Debug.Log(www.error);
+        }
+        else
+        {
+            string jsonString = www.downloadHandler.text;
+            TrafficLightList trafficLightList = JsonUtility.FromJson<TrafficLightList>("{\"trafficLights\":" + jsonString + "}");
+            foreach (TrafficLightPosition trafficLightPos in trafficLightList.trafficLights)
+            {
+                if (trafficLightObjects.TryGetValue(trafficLightPos.id, out GameObject trafficLightObject) && trafficLightObject != null && trafficLightPos.position != null && trafficLightPos.position.Length == 2)
+                {
+                    trafficLightObject.transform.position = new Vector3(trafficLightPos.position[0], 0, trafficLightPos.position[1]);
+                }
+            }
+        }
+    }
+
+    IEnumerator UpdateTrafficLightStates()
+    {
+        //Debug.Log("Iniciando Bbbbb"); // Esta línea imprimirá en la consola cuando la corrutina comience.
+        while (true)
+        {
+            //Debug.Log("Ccccc"); // Esta línea imprimirá en la consola cuando la corrutina comience.
+            UnityWebRequest www = UnityWebRequest.Get("http://127.0.0.1:5000/get_traffic_light_states");
+            yield return www.SendWebRequest();
+
+            if (www.result != UnityWebRequest.Result.Success)
+            {
+                Debug.Log(www.error);
+            }
+            else
+            {
+                string jsonString = www.downloadHandler.text;
+                TrafficLightStateList trafficLightStates = JsonUtility.FromJson<TrafficLightStateList>("{\"trafficLights\":" + jsonString + "}");
+                foreach (TrafficLightState trafficLightState in trafficLightStates.trafficLights)
+                {
+                    if (trafficLightObjects.TryGetValue(trafficLightState.id, out GameObject trafficLightObject) && trafficLightObject != null)
+                    {
+                        Renderer renderer = trafficLightObject.GetComponent<Renderer>();
+                        if (renderer != null)
+                        {
+                            Material colorMaterial = (trafficLightState.state == "red") ? redMaterial : greenMaterial;
+                            renderer.material = colorMaterial;
+                            //print("Traffic Light ID: " + trafficLightState.id + " New State: " + trafficLightState.state);
+                        }
+                    }
+                }
+            }
+            yield return new WaitForSeconds(1f);
         }
     }
 }

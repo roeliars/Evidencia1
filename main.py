@@ -650,9 +650,6 @@ class City(Model):
         self.place_parkings([(2, 6), (5, 3), (8, 3), (17, 6), (19, 6), (19, 3), (16, 13), (21, 14), (20, 19), (17, 20), (4, 13), (11, 13), (8, 15), (6,18), (2, 20), (9, 21), (11, 19)])
         
         self.place_roundabouts([(13, 9), (13, 10), (14, 9), (14, 10)])
-        
-        #self.send_car_positions_to_server()
-        #self.send_static_agent_positions_to_server()
 
 
     # Generar un coche en cada estacionamiento al inicio de la simulación
@@ -661,6 +658,11 @@ class City(Model):
             if car.destination_parking:
                 self.grid.place_agent(car, parking_agent.pos)
                 self.schedule.add(car)
+                
+        self.send_car_positions_to_server()
+        self.send_initial_traffic_light_positions()
+        self.send_traffic_light_states_to_server()
+
 
     def place_buildings(self, x_range, y_positions):
         for x in x_range:
@@ -696,21 +698,25 @@ class City(Model):
         else:
             # Manejar el caso en que pos no es una tupla de coordenadas válidas
             return False
-       
+               
     def send_car_positions_to_server(self):
             positions_data = {f"car_{car_agent.unique_id}": [car_agent.pos[0], car_agent.pos[1]] for car_agent in self.schedule.agents if isinstance(car_agent, Car)}
             requests.post("http://127.0.0.1:5000/update_car_positions", json=positions_data)
     
-    def send_static_agent_positions_to_server(self):
-        static_positions_data = {}
-        
-        for agent in self.schedule.agents:
-            if isinstance(agent, (Parking, Roundabout, TrafficLightAgent, Building)):
-                agent_type = type(agent).__name__.lower()
-                static_positions_data[f"{agent_type}_{agent.unique_id}"] = [agent.pos[0], agent.pos[1]]
+    def send_traffic_light_states_to_server(self):
+        traffic_light_data = {
+            f"traffic_light_{light_agent.unique_id}": {"position": [light_agent.pos[0], light_agent.pos[1]], "state": light_agent.state}
+            for light_agent in self.schedule.agents if isinstance(light_agent, TrafficLightAgent)
+        }
+        requests.post("http://127.0.0.1:5000/update_traffic_light_states", json=traffic_light_data)
 
-        requests.post("http://127.0.0.1:5000/update_static_agent_positions", json=static_positions_data)
-        
+    def send_initial_traffic_light_positions(self):
+        positions_data = {
+            f"traffic_light_{light_agent.unique_id}": [light_agent.pos[0], light_agent.pos[1]]
+            for light_agent in self.schedule.agents if isinstance(light_agent, TrafficLightAgent)
+        }
+        requests.post("http://127.0.0.1:5000/set_traffic_light_positions", json=positions_data)
+
     def step(self):
         self.schedule.step()
         self.step_count += 1  # Incrementar el contador de pasos en cada llamada a step
@@ -720,6 +726,8 @@ class City(Model):
             self.running = False
        
         self.send_car_positions_to_server()  # Añadir esta línea al final de step
+        self.send_traffic_light_states_to_server()
+
 
 # Incializamos el servidor y el modelo
 city_model = City(24, 24)
