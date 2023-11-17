@@ -7,7 +7,7 @@ using UnityEngine.Networking;
 public class CarPosition
 {
     public string id;
-    public float[] position; // Utiliza un arreglo de float en lugar de Vector2.
+    public float[] position; 
 }
 
 [System.Serializable]
@@ -16,13 +16,28 @@ public class CarPositionList
     public CarPosition[] positions;
 }
 
+[System.Serializable]
+public class StaticAgentPosition
+{
+    public string id;
+    public float[] position;
+}
+
+[System.Serializable]
+public class StaticAgentPositionList
+{
+    public StaticAgentPosition[] positions;
+}
+
 public class AgentPositionUpdater : MonoBehaviour
 {
+    // Creamos un diccionario para almacenar los GameObjects de los agentes Car
     private Dictionary<string, GameObject> carObjects = new Dictionary<string, GameObject>();
-
     void Start()
     {
-        DontDestroyOnLoad(gameObject); // Agrega esta línea al principio del método Start
+        DontDestroyOnLoad(gameObject); // Asegúrate de que este GameObject persista entre escenas
+
+        // Cargar GameObjects de coches
         for (int i = 205; i <= 222; i++)
         {
             string carId = "car_" + i;
@@ -32,7 +47,6 @@ public class AgentPositionUpdater : MonoBehaviour
                 carObjects[carId] = carObject;
             }
         }
-
         StartCoroutine(GetAgentPositions());
     }
 
@@ -40,7 +54,8 @@ public class AgentPositionUpdater : MonoBehaviour
     {
         while (true)
         {
-            UnityWebRequest www = UnityWebRequest.Get("http://127.0.0.1:5000/get_positions");
+            // Obtenemos y actualizamos las posiciones de coches
+            UnityWebRequest www = UnityWebRequest.Get("http://127.0.0.1:5000/get_car_positions");
             yield return www.SendWebRequest();
 
             if (www.result != UnityWebRequest.Result.Success)
@@ -50,41 +65,18 @@ public class AgentPositionUpdater : MonoBehaviour
             else
             {
                 string jsonString = www.downloadHandler.text;
-                Debug.Log("Datos JSON recibidos: " + jsonString);  // Esto imprimirá el JSON crudo en la consola
-
                 CarPositionList carPositions = JsonUtility.FromJson<CarPositionList>("{\"positions\":" + jsonString + "}");
                 foreach (CarPosition carPos in carPositions.positions)
                 {
-                    Debug.Log("Procesando: " + carPos.id + " en posición: " + carPos.position);  // Esto imprimirá cada posición procesada
-
-                    if (carObjects.TryGetValue(carPos.id, out GameObject carObject))
+                    if (carObjects.TryGetValue(carPos.id, out GameObject carObject) && carObject != null && carPos.position != null && carPos.position.Length == 2)
                     {
-                        if (carObject == null)
-                        {
-                            Debug.LogError("El GameObject con ID " + carPos.id + " fue encontrado en el diccionario pero es null");
-                            continue; // Salta a la próxima iteración del bucle
-                        }
+                        carObject.transform.position = new Vector3(carPos.position[0], 0, carPos.position[1]);
+                        print("Car ID: " + carPos.id + " Position: " + carObject.transform.position);
 
-                        // Comprueba que haya exactamente dos elementos en el arreglo de posición.
-                        if (carPos.position != null && carPos.position.Length == 2)
-                        {
-                            // Asigna las posiciones x y y al transform del objeto.
-                            carObject.transform.position = new Vector3(carPos.position[0], 0, carPos.position[1]);
-                            Debug.Log("Moviendo " + carPos.id + " a la posición: " + carObject.transform.position);
-                        }
-                        else
-                        {
-                            Debug.LogError("Array de posición incorrecto para " + carPos.id);
-                        }
-                    }
-                    else
-                    {
-                        Debug.LogError("No se encontró el GameObject para " + carPos.id);
                     }
                 }
             }
-
-            yield return new WaitForSeconds(1f); // Ajusta este tiempo según sea necesario
+            yield return new WaitForSeconds(0.001f); // Tiempo de delay
         }
     }
 }
