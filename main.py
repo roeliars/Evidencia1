@@ -109,6 +109,16 @@ class Car(Agent):
     def move(self):
         if self.path:
             next_step = self.path[0]
+            
+            # Comprobar si hay un coche en el siguiente paso
+            next_cell_contents = self.model.grid.get_cell_list_contents(next_step)
+            car_in_next_step = any(isinstance(obj, Car) for obj in next_cell_contents)
+
+            # Si hay un coche en el siguiente paso, no moverse y esperar
+            if car_in_next_step:
+                print(f"Car {self.unique_id} waiting for the path to clear at {next_step}")
+                return
+
             # Esperar si hay un semáforo en rojo en el siguiente paso
             if self.model.is_red_light(next_step):
                 print(f"Car {self.unique_id} waiting at red light at {next_step}")
@@ -125,7 +135,7 @@ class Car(Agent):
                 print(f"Car {self.unique_id} has arrived at destination {self.pos}")
         else:
             print(f"Car {self.unique_id} at {self.pos} has no path to follow")
-    
+            
     def step(self):
             # Si el coche ya ha llegado a su destino o no tiene un destino, no necesita moverse
             if self.has_arrived or not self.destination_parking:
@@ -640,6 +650,9 @@ class City(Model):
         self.place_parkings([(2, 6), (5, 3), (8, 3), (17, 6), (19, 6), (19, 3), (16, 13), (21, 14), (20, 19), (17, 20), (4, 13), (11, 13), (8, 15), (6,18), (2, 20), (9, 21), (11, 19)])
         
         self.place_roundabouts([(13, 9), (13, 10), (14, 9), (14, 10)])
+        
+        #self.send_car_positions_to_server()
+        #self.send_static_agent_positions_to_server()
 
 
     # Generar un coche en cada estacionamiento al inicio de la simulación
@@ -684,9 +697,19 @@ class City(Model):
             # Manejar el caso en que pos no es una tupla de coordenadas válidas
             return False
        
-    def send_positions_to_server(self):
+    def send_car_positions_to_server(self):
             positions_data = {f"car_{car_agent.unique_id}": [car_agent.pos[0], car_agent.pos[1]] for car_agent in self.schedule.agents if isinstance(car_agent, Car)}
-            requests.post("http://127.0.0.1:5000/update_positions", json=positions_data)
+            requests.post("http://127.0.0.1:5000/update_car_positions", json=positions_data)
+    
+    def send_static_agent_positions_to_server(self):
+        static_positions_data = {}
+        
+        for agent in self.schedule.agents:
+            if isinstance(agent, (Parking, Roundabout, TrafficLightAgent, Building)):
+                agent_type = type(agent).__name__.lower()
+                static_positions_data[f"{agent_type}_{agent.unique_id}"] = [agent.pos[0], agent.pos[1]]
+
+        requests.post("http://127.0.0.1:5000/update_static_agent_positions", json=static_positions_data)
         
     def step(self):
         self.schedule.step()
@@ -696,9 +719,9 @@ class City(Model):
         if self.step_count >= 100:
             self.running = False
        
-        self.send_positions_to_server()  # Añadir esta línea al final de step
+        self.send_car_positions_to_server()  # Añadir esta línea al final de step
 
-# Initialize and run the model
+# Incializamos el servidor y el modelo
 city_model = City(24, 24)
 while city_model.running:
   city_model.step()
@@ -720,10 +743,10 @@ def agent_portrayal(agent):
 grid = CanvasGrid(agent_portrayal, 24, 24, 500, 500)
 
 server = ModularServer(City,
-                     [grid],  # Include any other modules you've defined
+                     [grid], 
                      "City Simulation",
-                     {"width": 24, "height": 24})  # Include any model parameters if necessary
+                     {"width": 24, "height": 24})  
 
 
-server.port = 8521  # Default is 8521, but you can choose another
+server.port = 8521  # Puerto por defecto
 server.launch()
