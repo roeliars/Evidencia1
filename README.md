@@ -16,6 +16,13 @@ En equipo deben de:
 </ul>
 
 #
+*Entregables*
+<ul>
+  <li><a href="https://www.canva.com/design/DAF0SDNhMvk/uKlWeQAi9jhXKu2J644pUw/view?utm_content=DAF0SDNhMvk&utm_campaign=designshare&utm_medium=link&utm_source=editor">Presentación</a></li>
+  <li><a href="https://www.youtube.com/shorts/9HMnohOFItM">Video Mesa</a></li>
+  <li><a href="https://www.youtube.com/watch?v=I7ZFXrnXuxo">Video Unity</a></li>
+</ul>
+
 *Alumnos*
 <ul>
   <li>Román Mauricio Elias Valencia - <a href="mailto:a01656603@tec.mx">a01656603@tec.mx</a></li>
