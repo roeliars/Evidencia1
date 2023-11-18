@@ -45,7 +45,7 @@ public class TrafficLightStateList
 
 public class AgentPositionUpdater : MonoBehaviour
 {
-    // Creamos un diccionario para almacenar los GameObjects de los agentes Car
+    // Creamos un diccionario para almacenar los GameObjects de los agentes Car y TrafficLight
     private Dictionary<string, GameObject> carObjects = new Dictionary<string, GameObject>();
     private Dictionary<string, GameObject> trafficLightObjects = new Dictionary<string, GameObject>();
 
@@ -102,7 +102,6 @@ public class AgentPositionUpdater : MonoBehaviour
                     if (carObjects.TryGetValue(carPos.id, out GameObject carObject) && carObject != null && carPos.position != null && carPos.position.Length == 2)
                     {
                         carObject.transform.position = new Vector3(carPos.position[0], 0, carPos.position[1]);
-                        //print("Car ID: " + carPos.id + " Position: " + carObject.transform.position);
                     }
                 }
             }
@@ -134,10 +133,8 @@ public class AgentPositionUpdater : MonoBehaviour
 
     IEnumerator UpdateTrafficLightStates()
     {
-        //Debug.Log("Iniciando Bbbbb"); // Esta línea imprimirá en la consola cuando la corrutina comience.
         while (true)
         {
-            //Debug.Log("Ccccc"); // Esta línea imprimirá en la consola cuando la corrutina comience.
             UnityWebRequest www = UnityWebRequest.Get("http://127.0.0.1:5000/get_traffic_light_states");
             yield return www.SendWebRequest();
 
@@ -158,12 +155,11 @@ public class AgentPositionUpdater : MonoBehaviour
                         {
                             Material colorMaterial = (trafficLightState.state == "red") ? redMaterial : greenMaterial;
                             renderer.material = colorMaterial;
-                            //print("Traffic Light ID: " + trafficLightState.id + " New State: " + trafficLightState.state);
                         }
                     }
                 }
             }
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSeconds(1); // Tiempo de delay
         }
     }
 }
