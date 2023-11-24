@@ -125,7 +125,7 @@ public class AgentPositionUpdater : MonoBehaviour
             {
                 if (trafficLightObjects.TryGetValue(trafficLightPos.id, out GameObject trafficLightObject) && trafficLightObject != null && trafficLightPos.position != null && trafficLightPos.position.Length == 2)
                 {
-                    trafficLightObject.transform.position = new Vector3(trafficLightPos.position[0], 0, trafficLightPos.position[1]);
+                    trafficLightObject.transform.position = new Vector3(trafficLightPos.position[0], 2, trafficLightPos.position[1]);
                 }
             }
         }
@@ -150,16 +150,43 @@ public class AgentPositionUpdater : MonoBehaviour
                 {
                     if (trafficLightObjects.TryGetValue(trafficLightState.id, out GameObject trafficLightObject) && trafficLightObject != null)
                     {
-                        Renderer renderer = trafficLightObject.GetComponent<Renderer>();
-                        if (renderer != null)
-                        {
-                            Material colorMaterial = (trafficLightState.state == "red") ? redMaterial : greenMaterial;
-                            renderer.material = colorMaterial;
-                        }
+                        // Acceder a cada esfera por nombre
+                        Transform redSphere = trafficLightObject.transform.Find("red");
+                        Transform yellowSphere = trafficLightObject.transform.Find("yellow");
+                        Transform greenSphere = trafficLightObject.transform.Find("green");
+
+                        // Activar la emisión en el material correspondiente y desactivar los demás
+                        SetEmission(redSphere, trafficLightState.state == "red");
+                        SetEmission(yellowSphere, trafficLightState.state == "yellow");
+                        SetEmission(greenSphere, trafficLightState.state == "green");
                     }
                 }
             }
             yield return new WaitForSeconds(1); // Tiempo de delay
+        }
+    }
+
+    void SetEmission(Transform sphere, bool shouldEmit)
+    {
+        if (sphere != null)
+        {
+            Renderer sphereRenderer = sphere.GetComponent<Renderer>();
+            if (sphereRenderer != null)
+            {
+                Material sphereMaterial = sphereRenderer.material;
+                if (shouldEmit)
+                {
+                    sphereMaterial.EnableKeyword("_EMISSION");
+                    sphereMaterial.globalIlluminationFlags = MaterialGlobalIlluminationFlags.RealtimeEmissive;
+                    sphereMaterial.SetColor("_EmissionColor", sphereMaterial.color * Mathf.LinearToGammaSpace(1.5f)); // Ajusta el valor según sea necesario
+                }
+                else
+                {
+                    sphereMaterial.DisableKeyword("_EMISSION");
+                    sphereMaterial.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
+                    sphereMaterial.SetColor("_EmissionColor", Color.black);
+                }
+            }
         }
     }
 }
